@@ -1,0 +1,13 @@
+model Entry {
+  id           String @id @default(uuid())
+  userAddress  String
+  raffleId     String
+
+  user         User   @relation(fields: [userAddress], references: [walletAddress], onDelete: Cascade)
+  raffle       Raffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+
+  @@map("entries")
+  @@index([userAddress])
+  @@index([raffleId])
+}
+

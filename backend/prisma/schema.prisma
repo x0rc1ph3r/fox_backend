@@ -1,17 +1,122 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Base configuration for Prisma
+// This file contains the generator and datasource configuration
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "mysql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
+model Entry {
+  id           String @id @default(uuid())
+  userAddress  String
+  raffleId     String
 
+  user         User   @relation(fields: [userAddress], references: [walletAddress], onDelete: Cascade)
+  raffle       Raffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
 
+  @@map("entries")
+  @@index([userAddress])
+  @@index([raffleId])
+}
+
+model PrizeData {
+  id          String  @id @default(uuid())
+  address     String
+  mintAddress String
+  mint        String
+  name        String
+  verified    Boolean @default(true)
+  symbol      String
+  decimals    Int?
+  image       String
+  attributes  Json?
+  collection  String?
+  creator     String?
+  description String?
+  externalUrl String?
+  properties  Json?
+  floor       Float?
+  raffleId    String
+
+  raffle      Raffle  @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+
+  @@map("prize_data")
+  @@index([raffleId])
+  @@index([mint])
+  @@index([creator])
+}
+
+model Raffle {
+  id             String   @id @default(uuid())
+  raffle         String   @unique
+  createdAt      DateTime @default(now())
+  endsAt         DateTime
+  createdBy      String
+  ticketPrice    Float
+  ticketSupply   Int
+  ticketSold     Int      @default(0)
+  claimed        Boolean  @default(false)
+  winner         String?
+  winnerPicked   Boolean  @default(false)
+  floor          Float
+  ttv            Float
+  roi            Float
+  entriesAddress String
+  prize          String
+  maxEntries     Int
+  totalEntries   Int      @default(0)
+
+  creator      User        @relation("RaffleCreator", fields: [createdBy], references: [walletAddress], onDelete: Cascade)
+  favouritedBy User[]      @relation("FavouriteRaffle")
+  prizeData    PrizeData[]
+  entries      Entry[]
+
+  @@index([createdBy])
+  @@index([raffle])
+  @@index([winner])
+  @@index([endsAt])
+  @@map("raffles")
+}
+
+enum TransactionType {
+  DEPOSIT
+  CLAIM
+  PURCHASE
+  REFUND
+}
+
+model Transaction {
+  id            String          @id @default(uuid())
+  transactionId String          @unique
+  type          TransactionType
+  sender        String
+  receiver      String
+  createdAt     DateTime        @default(now())
+  amount        BigInt
+  isNft         Boolean         @default(false)
+  mintAddress    String          //a unified field for both token and nft transactions
+
+  user          User            @relation(fields: [sender], references: [walletAddress])
+  @@map("transactions")
+  @@index([sender])
+  @@index([receiver])
+  @@index([transactionId])
+}
+
+model User {
+  id                String   @id @default(uuid())
+  walletAddress     String   @unique
+  createdAt         DateTime @default(now())
+
+  rafflesCreated    Raffle[]     @relation("RaffleCreator")
+  favouriteRaffles  Raffle[]     @relation("FavouriteRaffle")
+  entries           Entry[]
+  transactions      Transaction[]
+
+  @@map("users")
+  @@index([walletAddress])
+}

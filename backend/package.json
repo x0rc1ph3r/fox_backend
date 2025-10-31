@@ -7,11 +7,13 @@
     "build": "tsc",
     "start": "node dist/src/app.js",
     "dev": "yarn build && yarn start",
+    "prisma:merge": "ts-node src/database/merge.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/client": "^6.18.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -23,6 +25,8 @@
     "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
     "tsc": "^2.0.4",
     "typescript": "^5.9.3"
   }

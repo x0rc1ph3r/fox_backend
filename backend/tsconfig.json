@@ -2,11 +2,11 @@
   "compilerOptions": {
     "module": "commonjs",
     "esModuleInterop": true,
-    "target": "es6",
+    "target": "es2018",
     "moduleResolution": "node",
     "sourceMap": true,
     "outDir": "dist",
-    "strict": true
-  },
-  "lib": ["es2015"]
+    "strict": true,
+    "lib": ["es2018"]
+  }
 }

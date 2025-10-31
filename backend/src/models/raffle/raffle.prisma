@@ -1,0 +1,31 @@
+model Raffle {
+  id             String   @id @default(uuid())
+  raffle         String   @unique
+  createdAt      DateTime @default(now())
+  endsAt         DateTime
+  createdBy      String
+  ticketPrice    Float
+  ticketSupply   Int
+  ticketSold     Int      @default(0)
+  claimed        Boolean  @default(false)
+  winner         String?
+  winnerPicked   Boolean  @default(false)
+  floor          Float
+  ttv            Float
+  roi            Float
+  entriesAddress String
+  prize          String
+  maxEntries     Int
+  totalEntries   Int      @default(0)
+
+  creator      User        @relation("RaffleCreator", fields: [createdBy], references: [walletAddress], onDelete: Cascade)
+  favouritedBy User[]      @relation("FavouriteRaffle")
+  prizeData    PrizeData[]
+  entries      Entry[]
+
+  @@index([createdBy])
+  @@index([raffle])
+  @@index([winner])
+  @@index([endsAt])
+  @@map("raffles")
+}

@@ -1,0 +1,27 @@
+model PrizeData {
+  id          String  @id @default(uuid())
+  address     String
+  mintAddress String
+  mint        String
+  name        String
+  verified    Boolean @default(true)
+  symbol      String
+  decimals    Int?
+  image       String
+  attributes  Json?
+  collection  String?
+  creator     String?
+  description String?
+  externalUrl String?
+  properties  Json?
+  floor       Float?
+  raffleId    String
+
+  raffle      Raffle  @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+
+  @@map("prize_data")
+  @@index([raffleId])
+  @@index([mint])
+  @@index([creator])
+}
+
