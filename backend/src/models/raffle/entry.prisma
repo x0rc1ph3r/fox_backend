@@ -3,8 +3,8 @@ model Entry {
   userAddress  String
   raffleId     String
 
-  user         User   @relation(fields: [userAddress], references: [walletAddress], onDelete: Cascade)
-  raffle       Raffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  user         User   @relation("UserEntries", fields: [userAddress], references: [walletAddress], onDelete: Cascade, map: "entries_user_fkey")
+  raffle       Raffle @relation("RaffleEntries", fields: [raffleId], references: [id], onDelete: Cascade, map: "entries_raffle_fkey")
 
   @@map("entries")
   @@index([userAddress])

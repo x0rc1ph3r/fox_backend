@@ -6,6 +6,7 @@ import rateLimit from "express-rate-limit";
 import userRouter from "../routes/userRoutes";
 import passport from "./passportConfig";
 import session from "express-session";
+import raffleRouter from "../routes/raffleRoutes";
 
 export const app = express();
 
@@ -44,6 +45,7 @@ app.use(passport.initialize())
 app.use(passport.session())
 
 app.use("/api/user", userRouter);
+app.use("/api/raffle",raffleRouter);
 
 const serverConn = createServer(app);
 

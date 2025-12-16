@@ -6,9 +6,10 @@ model User {
   twitterConnected  Boolean  @default(false)
   rafflesCreated    Raffle[]     @relation("RaffleCreator")
   favouriteRaffles  Raffle[]     @relation("FavouriteRaffle")
-  entries           Entry[]
+  raffleEntries     Entry[]       @relation("UserEntries")
   transactions      Transaction[]
-
+  raffleWinnings    Raffle[]      @relation("RaffleWinner")
+ 
   @@map("users")
   @@index([walletAddress])
 }

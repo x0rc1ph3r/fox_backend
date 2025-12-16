@@ -9,7 +9,7 @@
     "dev": "nodemon --exec ts-node src/app.ts",
     "prisma:merge": "ts-node src/database/merge.ts",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "yarn prisma:merge && prisma migrate dev",
+    "prisma:migrate": "pnpm run prisma:merge && prisma migrate dev",
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
@@ -42,6 +42,7 @@
     "@types/express-session": "^1.18.2",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.0.0",
+    "@types/passport": "^1.0.17",
     "ts-node": "^10.9.2",
     "tsc": "^2.0.4",
     "typescript": "^5.9.3"

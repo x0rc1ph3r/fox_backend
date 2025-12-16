@@ -15,8 +15,8 @@ model Entry {
   userAddress  String
   raffleId     String
 
-  user         User   @relation(fields: [userAddress], references: [walletAddress], onDelete: Cascade)
-  raffle       Raffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  user         User   @relation("UserEntries", fields: [userAddress], references: [walletAddress], onDelete: Cascade, map: "entries_user_fkey")
+  raffle       Raffle @relation("RaffleEntries", fields: [raffleId], references: [id], onDelete: Cascade, map: "entries_raffle_fkey")
 
   @@map("entries")
   @@index([userAddress])
@@ -50,19 +50,31 @@ model PrizeData {
   @@index([creator])
 }
 
+enum RaffleState{
+    None
+    Initialized
+    Active
+    Cancelled
+    SuccessEnded
+    FailedEnded
+}
+
 model Raffle {
   id             String   @id @default(uuid())
   raffle         String   @unique
   createdAt      DateTime @default(now())
   endsAt         DateTime
+  state          RaffleState @default(None)
   createdBy      String
   ticketPrice    Float
+  ticketTokenAddress    String @default("So11111111111111111111111111111111111111112")
   ticketSupply   Int
   ticketSold     Int      @default(0)
-  claimed        Boolean  @default(false)
-  winner         String?
+  claimed        Int      @default(0)
+  numberOfWinners Int      @default(1)
   winnerPicked   Boolean  @default(false)
-  floor          Float
+  floor          Float?
+  val            Float?
   ttv            Float
   roi            Float
   entriesAddress String
@@ -72,12 +84,12 @@ model Raffle {
 
   creator      User        @relation("RaffleCreator", fields: [createdBy], references: [walletAddress], onDelete: Cascade)
   favouritedBy User[]      @relation("FavouriteRaffle")
+  winners      User[]      @relation("RaffleWinner")
   prizeData    PrizeData[]
-  entries      Entry[]
+  raffleEntries Entry[]      @relation("RaffleEntries")
 
   @@index([createdBy])
   @@index([raffle])
-  @@index([winner])
   @@index([endsAt])
   @@map("raffles")
 }
@@ -115,9 +127,10 @@ model User {
   twitterConnected  Boolean  @default(false)
   rafflesCreated    Raffle[]     @relation("RaffleCreator")
   favouriteRaffles  Raffle[]     @relation("FavouriteRaffle")
-  entries           Entry[]
+  raffleEntries     Entry[]       @relation("UserEntries")
   transactions      Transaction[]
-
+  raffleWinnings    Raffle[]      @relation("RaffleWinner")
+ 
   @@map("users")
   @@index([walletAddress])
 }
