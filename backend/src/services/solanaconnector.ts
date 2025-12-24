@@ -9,12 +9,13 @@ import { Program, AnchorProvider, Wallet } from "@coral-xyz/anchor";
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import * as anchor from "@coral-xyz/anchor";
 import raffleIdl from "../types/raffle.json";
+import dotenv from "dotenv";
+dotenv.config();
 
 const connection = new Connection(
     process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com",
     "confirmed"
 );
-
 const RAFFLE_ADMIN_KEYPAIR = Keypair.fromSecretKey(
     Uint8Array.from(JSON.parse(process.env.RAFFLE_ADMIN_PRIVATE_KEY || "[]"))
 );
@@ -24,35 +25,23 @@ const provider = new AnchorProvider(connection, wallet, {
     commitment: "confirmed",
 });
 
-// Your raffle program (replace with your actual program ID and IDL)
 const RAFFLE_PROGRAM_ID = new anchor.web3.PublicKey(raffleIdl.address);
 const raffleProgram = new Program(raffleIdl as anchor.Idl, provider);
 
-// Placeholder addresses
 const FAKE_MINT = new PublicKey("So11111111111111111111111111111111111111112");
 const FAKE_ATA = new PublicKey("B9W4wPFWjTbZ9ab1okzB4D3SsGY7wntkrBKwpp5RC1Uv");
 
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Derives the raffle PDA
- */
 function rafflePda(raffleId: number): PublicKey {
+    const idBuffer = Buffer.alloc(4);
+    idBuffer.writeUInt32LE(raffleId);
+
     const [pda] = PublicKey.findProgramAddressSync(
-        [
-            Buffer.from("raffle"),
-            Buffer.from(new Uint8Array(new BigUint64Array([BigInt(raffleId)]).buffer)),
-        ],
+        [Buffer.from("raffle"), idBuffer],
         RAFFLE_PROGRAM_ID
     );
     return pda;
 }
 
-/**
- * Derives the raffle config PDA
- */
 function getRaffleConfigPda(): PublicKey {
     const [pda] = PublicKey.findProgramAddressSync(
         [Buffer.from("raffle_config")],
@@ -61,9 +50,6 @@ function getRaffleConfigPda(): PublicKey {
     return pda;
 }
 
-/**
- * Gets the token program from a mint (Token or Token-2022)
- */
 async function getTokenProgramFromMint(
     connection: Connection,
     mint: PublicKey
@@ -74,7 +60,6 @@ async function getTokenProgramFromMint(
         throw new Error("Mint account not found");
     }
 
-    // Check if it's Token-2022 program
     const TOKEN_2022_PROGRAM_ID = new PublicKey(
         "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
     );
@@ -86,9 +71,6 @@ async function getTokenProgramFromMint(
     return TOKEN_PROGRAM_ID;
 }
 
-/**
- * Ensures an ATA exists and returns instruction if creation needed
- */
 async function ensureAtaIx(params: {
     connection: Connection;
     mint: PublicKey;
@@ -112,7 +94,6 @@ async function ensureAtaIx(params: {
         return { ata, ix: null };
     }
 
-    // Create ATA instruction
     const { createAssociatedTokenAccountInstruction } = await import("@solana/spl-token");
     
     const ix = createAssociatedTokenAccountInstruction(
@@ -126,12 +107,7 @@ async function ensureAtaIx(params: {
     return { ata, ix };
 }
 
-// ============================================================================
-// Main Function: Announce Winners
-// ============================================================================
-
 async function announceWinners(
-    raffleProgram: Program,
     args: {
         raffleId: number;
         winners: PublicKey[];
@@ -140,7 +116,6 @@ async function announceWinners(
     try {
         const tx = new Transaction();
 
-        // ---------------- PDAs ----------------
         const raffleAccountPda = rafflePda(args.raffleId);
         const raffleConfigPda = getRaffleConfigPda();
 
@@ -148,21 +123,17 @@ async function announceWinners(
             raffleAccountPda
         );
 
-        // ---------------- Ticket mint ----------------
         const ticketMint = raffleData.ticketMint ?? FAKE_MINT;
 
-        // ---------------- Token program ----------------
         const ticketTokenProgram = await getTokenProgramFromMint(
             connection,
             ticketMint
         );
 
-        // ---------------- Escrow & Treasury ----------------
         let ticketEscrow = FAKE_ATA;
         let ticketFeeTreasury = FAKE_ATA;
 
         if (raffleData.ticketMint !== null) {
-            // Ticket escrow ATA (owner = raffle PDA)
             const escrowRes = await ensureAtaIx({
                 connection,
                 mint: ticketMint,
@@ -175,7 +146,6 @@ async function announceWinners(
             ticketEscrow = escrowRes.ata;
             if (escrowRes.ix) tx.add(escrowRes.ix);
 
-            // Fee treasury ATA (owner = raffle config PDA)
             const treasuryRes = await ensureAtaIx({
                 connection,
                 mint: ticketMint,
@@ -189,7 +159,6 @@ async function announceWinners(
             if (treasuryRes.ix) tx.add(treasuryRes.ix);
         }
 
-        // ---------------- Anchor Instruction ----------------
         const ix = await raffleProgram.methods
             .announceWinners(args.raffleId, args.winners)
             .accounts({
@@ -203,7 +172,6 @@ async function announceWinners(
 
         tx.add(ix);
 
-        // ---------------- Send TX ----------------
         const signature = await sendAndConfirmTransaction(
             connection,
             tx,
@@ -218,37 +186,6 @@ async function announceWinners(
         console.error("Announce winners failed:", error);
         throw error;
     }
-}
-
-// ============================================================================
-// Usage Example
-// ============================================================================
-
-async function main() {
-    // Example usage
-    const raffleId = 1;
-    const winners = [
-        new PublicKey("Winner1PublicKey..."),
-        new PublicKey("Winner2PublicKey..."),
-        new PublicKey("Winner3PublicKey..."),
-    ];
-
-    try {
-        // Uncomment once you have your program initialized
-        // const signature = await announceWinners(raffleProgram, {
-        //     raffleId,
-        //     winners,
-        // });
-        // console.log("Transaction signature:", signature);
-    } catch (error) {
-        console.error("Error:", error);
-        process.exit(1);
-    }
-}
-
-// Run if this is the main module
-if (require.main === module) {
-    main();
 }
 
 export { announceWinners, connection, provider, RAFFLE_ADMIN_KEYPAIR };

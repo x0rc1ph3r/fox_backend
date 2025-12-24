@@ -13,7 +13,7 @@ app.get("/health",(req:Request,res:Response)=>{
 serverConn.listen(process.env.PORT || 3000,async ()=>{
     await connectRedis();
     // Start the cron job to check for expired raffles
-    // startRaffleCronJob();
+    startRaffleCronJob();
     
     console.log(`Server is listening on port ${process.env.PORT || 3000}`)
 })

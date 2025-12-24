@@ -1,0 +1,69 @@
+enum GumballStatus {
+  NONE
+  INITIALIZED
+  ACTIVE
+  CANCELLED
+  COMPLETED_SUCCESSFULLY
+  COMPLETED_FAILED
+}
+
+model Gumball {
+  id              Int             @id @default(autoincrement())
+  creator         User            @relation("GumballCreator", fields: [creatorAddress], references: [walletAddress])
+  creatorAddress  String
+  
+  // Basic info
+  name            String          @db.VarChar(32)
+  manualStart     Boolean         @default(false)
+  startTime       DateTime
+  endTime         DateTime
+  
+  // Ticket configuration
+  totalTickets    Int
+  ticketsSold     Int             @default(0)
+  ticketMint      String?
+  ticketPrice     BigInt
+  isTicketSol     Boolean         @default(true)
+  
+  // Prize configuration
+  prizesAdded     Int             @default(0)
+  minPrizes       Int             @default(2)
+  maxPrizes       Int             @default(1000)
+  totalPrizeValue BigInt          @default(0)
+  
+  // Buy back settings
+  buyBackEnabled    Boolean       @default(false)
+  buyBackPercentage Float?        // Percentage of floor price for buy back
+  buyBackEscrow     String?       // Escrow address for buy back funds
+  buyBackCount      Int           @default(0)
+  buyBackProfit     BigInt        @default(0)
+  
+  // Stats
+  uniqueBuyers    Int             @default(0)
+  totalProceeds   BigInt          @default(0)
+  maxProceeds     BigInt          @default(0)
+  maxRoi          Float?
+  
+  // Status & timestamps
+  status          GumballStatus   @default(NONE)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  activatedAt     DateTime?
+  cancelledAt     DateTime?
+  endedAt         DateTime?
+  
+  // Rent info
+  rentAmount      BigInt?
+  
+  // Relations
+  prizes          GumballPrize[]  @relation("GumballPrizes")
+  spins           GumballSpin[]   @relation("GumballSpins")
+  transactions    Transaction[]   @relation("TransactionGumball")
+
+  @@map("gumballs")
+  @@index([creatorAddress])
+  @@index([status])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([name])
+}

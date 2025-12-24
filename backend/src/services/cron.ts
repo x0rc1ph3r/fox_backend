@@ -1,6 +1,8 @@
 import cron from "node-cron";
 import prismaClient from "../database/client";
 import logger from "../utils/logger";
+import { announceWinners } from "./solanaconnector";
+import { PublicKey } from "@solana/web3.js";
 
 
 function selectRandomWinners(
@@ -9,7 +11,6 @@ function selectRandomWinners(
 ): string[] {
   if (entries.length === 0) return [];
 
-  // Create weighted pool - each entry appears 'quantity' times
   const weightedPool: string[] = [];
   for (const entry of entries) {
     for (let i = 0; i < entry.quantity; i++) {
@@ -17,21 +18,17 @@ function selectRandomWinners(
     }
   }
 
-  // Get unique participants
   const uniqueParticipants = [...new Set(entries.map((e) => e.userAddress))];
 
-  // If fewer unique participants than winners needed, all participants win
   if (uniqueParticipants.length <= numberOfWinners) {
     return uniqueParticipants;
   }
 
-  // Fisher-Yates shuffle of the weighted pool
   for (let i = weightedPool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [weightedPool[i], weightedPool[j]] = [weightedPool[j], weightedPool[i]];
   }
 
-  // Pick unique winners from shuffled pool
   const winners: Set<string> = new Set();
   let index = 0;
 
@@ -40,7 +37,6 @@ function selectRandomWinners(
     index++;
   }
 
-  // If we still need more winners (edge case), pick from remaining participants
   if (winners.size < numberOfWinners) {
     for (const participant of uniqueParticipants) {
       if (!winners.has(participant)) {
@@ -53,14 +49,11 @@ function selectRandomWinners(
   return Array.from(winners);
 }
 
-/**
- * Process expired raffles - draw winners and end the raffle
- */
+
 async function processExpiredRaffles(): Promise<void> {
   const now = new Date();
 
   try {
-    // Find all active raffles that have expired
     const expiredRaffles = await prismaClient.raffle.findMany({
       where: {
         state: "Active",
@@ -106,9 +99,8 @@ async function processExpiredRaffles(): Promise<void> {
             raffle.raffleEntries,
             raffle.numberOfWinners
           );
-
+          logger.log(`[CRON] Winner addresses: ${winnerAddresses.join(", ")}`);
           if (winnerAddresses.length === 0) {
-            // Edge case - couldn't select winners
             await tx.raffle.update({
               where: { id: raffle.id },
               data: {
@@ -121,7 +113,18 @@ async function processExpiredRaffles(): Promise<void> {
             );
             return;
           }
-
+          await new Promise( (resolve) => setTimeout(resolve,5000));
+          const signature = await announceWinners(
+              {
+                raffleId: raffle.id,
+                winners: winnerAddresses.map((address) => new PublicKey(address)),
+              }
+            );
+            if(!signature){
+              console.error(`[CRON] Transaction of announce winner failed for raffle ${raffle.id}`);
+              throw new Error("Transaction of announce winner failed");
+            }
+          
           // Update raffle with winners
           await tx.raffle.update({
             where: { id: raffle.id },
@@ -135,11 +138,30 @@ async function processExpiredRaffles(): Promise<void> {
               },
             },
           });
-
+          
+          await tx.transaction.create({
+            data: {
+              raffleId: raffle.id,
+              transactionId: signature,
+              type: "RAFFLE_END",
+              sender: raffle.createdBy,
+              receiver: "system",
+              amount: BigInt(0),
+              isNft: false,
+              mintAddress: "So11111111111111111111111111111111111111112",
+            },
+          });
+          await tx.raffle.update({
+            where: { id: raffle.id },
+            data: {
+              state: "SuccessEnded",
+              winnerPicked: true,
+            },
+          });
           logger.log(
             `[CRON] Raffle ${raffle.id} ended successfully with ${winnerAddresses.length} winner(s): ${winnerAddresses.join(", ")}`
           );
-        });
+        }, { timeout: 10000 });
       } catch (error) {
         logger.error(`[CRON] Error processing raffle ${raffle.id}:`, error);
       }
@@ -149,11 +171,7 @@ async function processExpiredRaffles(): Promise<void> {
   }
 }
 
-/**
- * Start the cron job to check for expired raffles every minute
- */
 export function startRaffleCronJob(): void {
-  // Run every minute: "* * * * *"
   cron.schedule("* * * * *", async () => {
     logger.log("[CRON] Checking for expired raffles...");
     await processExpiredRaffles();
@@ -162,74 +180,7 @@ export function startRaffleCronJob(): void {
   logger.log("[CRON] Raffle cron job started - checking every minute");
 }
 
-/**
- * Manually trigger winner drawing for a specific raffle (for testing)
- */
-export async function manuallyEndRaffle(raffleId: string): Promise<{
-  success: boolean;
-  message: string;
-  winners?: string[];
-}> {
-  try {
-    const raffle = await prismaClient.raffle.findUnique({
-      where: { id: raffleId },
-      include: { raffleEntries: true },
-    });
-
-    if (!raffle) {
-      return { success: false, message: "Raffle not found" };
-    }
-
-    if (raffle.state !== "Active") {
-      return { success: false, message: "Raffle is not active" };
-    }
-
-    if (raffle.winnerPicked) {
-      return { success: false, message: "Winners have already been picked" };
-    }
-
-    if (raffle.raffleEntries.length === 0 || raffle.ticketSold === 0) {
-      await prismaClient.raffle.update({
-        where: { id: raffleId },
-        data: {
-          state: "FailedEnded",
-          winnerPicked: true,
-        },
-      });
-      return { success: true, message: "Raffle ended as failed (no entries)" };
-    }
-
-    const winnerAddresses = selectRandomWinners(
-      raffle.raffleEntries,
-      raffle.numberOfWinners
-    );
-
-    await prismaClient.raffle.update({
-      where: { id: raffleId },
-      data: {
-        state: "SuccessEnded",
-        winnerPicked: true,
-        winners: {
-          connect: winnerAddresses.map((address) => ({
-            walletAddress: address,
-          })),
-        },
-      },
-    });
-
-    return {
-      success: true,
-      message: "Raffle ended successfully",
-      winners: winnerAddresses,
-    };
-  } catch (error) {
-    logger.error(`[MANUAL] Error ending raffle ${raffleId}:`, error);
-    return { success: false, message: "Error ending raffle" };
-  }
-}
-
 export default {
   startRaffleCronJob,
-  manuallyEndRaffle,
   processExpiredRaffles,
 };

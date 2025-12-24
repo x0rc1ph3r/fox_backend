@@ -1,0 +1,21 @@
+model Bid {
+  id              String    @id @default(uuid())
+  auction         Auction   @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  auctionId       Int
+  bidder          User      @relation("BidderBids", fields: [bidderWallet], references: [walletAddress])
+  bidderWallet    String    // Solana wallet address
+  
+  bidAmount       String    
+  bidTime         DateTime  @default(now())
+  
+  wasRefunded     Boolean   @default(false)
+  refundedAt      DateTime?
+  transactionId   String?   @unique
+  transaction     Transaction? @relation("TransactionBid", fields: [transactionId], references: [transactionId])
+
+  @@map("bids")
+  @@index([auctionId])
+  @@index([bidderWallet])
+  @@index([bidTime])
+  @@index([wasRefunded])
+}

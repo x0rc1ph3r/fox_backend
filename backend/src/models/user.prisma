@@ -1,17 +1,24 @@
 model User {
-  id                String   @id @default(uuid())
-  walletAddress     String   @unique
-  createdAt         DateTime @default(now())
-  twitterId         String?   @unique
-  twitterConnected  Boolean  @default(false)
-  rafflesCreated    Raffle[]     @relation("RaffleCreator")
-  favouriteRaffles  Raffle[]     @relation("FavouriteRaffle")
+  id                String        @id @default(uuid())
+  walletAddress     String        @unique
+  createdAt         DateTime      @default(now())
+  twitterId         String?       @unique
+  twitterConnected  Boolean       @default(false)
+  
+  rafflesCreated    Raffle[]      @relation("RaffleCreator")
+  favouriteRaffles  Raffle[]      @relation("FavouriteRaffle")
   raffleEntries     Entry[]       @relation("UserEntries")
   transactions      Transaction[]
   raffleWinnings    Raffle[]      @relation("RaffleWinner")
- 
+  auctionsCreated   Auction[]     @relation("AuctionCreator")
+  bidsPlaced        Bid[]         @relation("BidderBids")
+  auctionsWon       Auction[]     @relation("AuctionWinner")
+  favouriteAuctions Auction[]     @relation("FavouriteAuction")
+  gumballsCreated   Gumball[]     @relation("GumballCreator")
+  gumballSpins      GumballSpin[] @relation("GumballSpinner")
+  gumballWinnings   GumballSpin[] @relation("GumballWinner")
+
   @@map("users")
   @@index([walletAddress])
 }
-
 

@@ -10,6 +10,228 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Auction {
+  id                  Int           @id @default(autoincrement())
+  createdBy           String        // Solana wallet address
+  
+  // Prize details
+  prizeMint           String        
+  prizeName           String?       
+  prizeImage          String?       
+  collectionName      String?       
+  collectionVerified  Boolean       @default(false) 
+  floorPrice          Float? 
+  traits              Json?
+  details             Json?
+ 
+  createdAt           DateTime      @default(now())
+  startsAt            DateTime      @default(now())
+  timeExtension       Int?          
+  updatedAt           DateTime      @updatedAt
+  endsAt              DateTime
+  
+  // Auction configuration
+  reservePrice        String?       
+  currency            String        @default("SOL") 
+  bidIncrementPercent Float?       
+  payRoyalties        Boolean       @default(false) 
+  royaltyPercentage   Float?        @default(0) 
+  
+  // Current state
+  highestBidAmount    String        @default("0")
+  highestBidderWallet String?       // Solana wallet address
+  hasAnyBid           Boolean       @default(false)
+  status              AuctionStatus @default(NONE)
+  
+  // Completion details
+  finalPrice          String?
+  creatorAmount       String?       // Amount sent to creator after fees
+  feeAmount           String?       // Platform fee collected
+  completedAt         DateTime?
+  cancelledAt         DateTime?
+  
+  // On-chain data
+  auctionPda          String?       // Auction PDA address
+  auctionBump         Int?          // PDA bump seed
+  bidEscrow           String?       // Bid escrow account
+  
+  // Relations
+  bids                Bid[]
+  favouritedBy        User[]        @relation("FavouriteAuction")
+  creator             User          @relation("AuctionCreator", fields: [createdBy], references: [walletAddress])
+  highestBidder       User?         @relation("AuctionWinner", fields: [highestBidderWallet], references: [walletAddress])
+  transactions        Transaction[] @relation("TransactionAuction")
+  @@map("auctions")
+  @@index([createdBy])
+  @@index([status])
+  @@index([startsAt])
+  @@index([endsAt])
+  @@index([highestBidderWallet])
+  @@index([collectionName])
+}
+
+
+
+enum AuctionStatus {
+  NONE
+  INITIALIZED
+  ACTIVE
+  CANCELLED
+  COMPLETED_SUCCESSFULLY
+  COMPLETED_FAILED
+}
+
+model Bid {
+  id              String    @id @default(uuid())
+  auction         Auction   @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  auctionId       Int
+  bidder          User      @relation("BidderBids", fields: [bidderWallet], references: [walletAddress])
+  bidderWallet    String    // Solana wallet address
+  
+  bidAmount       String    
+  bidTime         DateTime  @default(now())
+  
+  wasRefunded     Boolean   @default(false)
+  refundedAt      DateTime?
+  transactionId   String?   @unique
+  transaction     Transaction? @relation("TransactionBid", fields: [transactionId], references: [transactionId])
+
+  @@map("bids")
+  @@index([auctionId])
+  @@index([bidderWallet])
+  @@index([bidTime])
+  @@index([wasRefunded])
+}
+
+enum GumballStatus {
+  NONE
+  INITIALIZED
+  ACTIVE
+  CANCELLED
+  COMPLETED_SUCCESSFULLY
+  COMPLETED_FAILED
+}
+
+model Gumball {
+  id              Int             @id @default(autoincrement())
+  creator         User            @relation("GumballCreator", fields: [creatorAddress], references: [walletAddress])
+  creatorAddress  String
+  
+  // Basic info
+  name            String          @db.VarChar(32)
+  manualStart     Boolean         @default(false)
+  startTime       DateTime
+  endTime         DateTime
+  
+  // Ticket configuration
+  totalTickets    Int
+  ticketsSold     Int             @default(0)
+  ticketMint      String?
+  ticketPrice     BigInt
+  isTicketSol     Boolean         @default(true)
+  
+  // Prize configuration
+  prizesAdded     Int             @default(0)
+  minPrizes       Int             @default(2)
+  maxPrizes       Int             @default(1000)
+  totalPrizeValue BigInt          @default(0)
+  
+  // Buy back settings
+  buyBackEnabled    Boolean       @default(false)
+  buyBackPercentage Float?        // Percentage of floor price for buy back
+  buyBackEscrow     String?       // Escrow address for buy back funds
+  buyBackCount      Int           @default(0)
+  buyBackProfit     BigInt        @default(0)
+  
+  // Stats
+  uniqueBuyers    Int             @default(0)
+  totalProceeds   BigInt          @default(0)
+  maxProceeds     BigInt          @default(0)
+  maxRoi          Float?
+  
+  // Status & timestamps
+  status          GumballStatus   @default(NONE)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  activatedAt     DateTime?
+  cancelledAt     DateTime?
+  endedAt         DateTime?
+  
+  // Rent info
+  rentAmount      BigInt?
+  
+  // Relations
+  prizes          GumballPrize[]  @relation("GumballPrizes")
+  spins           GumballSpin[]   @relation("GumballSpins")
+  transactions    Transaction[]   @relation("TransactionGumball")
+
+  @@map("gumballs")
+  @@index([creatorAddress])
+  @@index([status])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([name])
+}
+
+model GumballPrize {
+  id              Int       @id @default(autoincrement())
+  gumball         Gumball   @relation("GumballPrizes", fields: [gumballId], references: [id], onDelete: Cascade)
+  gumballId       Int
+  prizeIndex      Int
+  
+  // Prize type
+  isNft           Boolean   @default(false)
+  
+  // Token/NFT details
+  mint            String
+  name            String?
+  symbol          String?
+  image           String?
+  decimals        Int?
+  
+  // Prize amounts
+  totalAmount     BigInt    // Total value deposited
+  prizeAmount     BigInt    // Amount per prize
+  quantity        Int       // Number of this prize available
+  quantityClaimed Int       @default(0)
+  
+  // For NFTs - floor price used for buy back calculation
+  floorPrice      BigInt?
+  
+  createdAt       DateTime  @default(now())
+  
+  spins           GumballSpin[] @relation("PrizeSpins")
+
+  @@unique([gumballId, prizeIndex])
+  @@map("gumball_prizes")
+  @@index([gumballId])
+  @@index([mint])
+}
+
+model GumballSpin {
+  id              Int           @id @default(autoincrement())
+  gumball         Gumball       @relation("GumballSpins", fields: [gumballId], references: [id])
+  gumballId       Int
+  prize           GumballPrize  @relation("PrizeSpins", fields: [prizeId], references: [id])
+  prizeId         Int
+  spinner         User          @relation("GumballSpinner", fields: [spinnerAddress], references: [walletAddress])
+  spinnerAddress  String
+  winner          User?         @relation("GumballWinner", fields: [winnerAddress], references: [walletAddress])
+  winnerAddress   String?
+  prizeAmount     BigInt
+  spunAt          DateTime      @default(now())
+  claimed         Boolean       @default(false)
+  claimedAt       DateTime?
+  
+  transaction     Transaction?  @relation("TransactionGumballSpin")
+
+  @@map("gumball_spins")
+  @@index([gumballId])
+  @@index([prizeId])
+  @@index([spinnerAddress])
+  @@index([winnerAddress])
+}
+
 model Entry {
   id           Int @id @default(autoincrement())
   userAddress  String
@@ -112,46 +334,82 @@ enum TransactionType {
   RAFFLE_REFUND
   RAFFLE_PURCHASE
   RAFFLE_DEPOSIT
+  AUCTION_CREATION
+  AUCTION_BID
+  AUCTION_CANCEL
+  AUCTION_END
+  AUCTION_CLAIM
+  AUCTION_REFUND
+  AUCTION_PURCHASE
+  AUCTION_DEPOSIT
+  GUMBALL_CREATION
+  GUMBALL_ACTIVATE
+  GUMBALL_PRIZE_ADD
+  GUMBALL_SPIN
+  GUMBALL_END
+  GUMBALL_CANCEL
+  GUMBALL_CLAIM_PRIZE
+  GUMBALL_UPDATE
 }
 
+
 model Transaction {
-  id            String          @id @default(uuid())
-  transactionId String          @unique
-  type          TransactionType
-  sender        String
-  receiver      String
-  createdAt     DateTime        @default(now())
-  amount        BigInt
-  isNft         Boolean         @default(false)
-  mintAddress   String          //a unified field for both token and nft transactions
-  metadata      Json?           //metadata for the transaction
+  id              String          @id @default(uuid())
+  transactionId   String          @unique
+  type            TransactionType
+  sender          String
+  receiver        String
+  createdAt       DateTime        @default(now())
+  amount          BigInt
+  isNft           Boolean         @default(false)
+  mintAddress     String
+  metadata        Json?
   
-  entryId       Int?            
-  raffleId      Int?            
-  entry       Entry?            @relation("TransactionEntry", fields: [entryId], references: [id])
-  raffle      Raffle?           @relation("TransactionRaffle", fields: [raffleId], references: [id])
+  entryId         Int?
+  raffleId        Int?
+  auctionId       Int?
+  gumballId       Int?
+  gumballSpinId   Int?            @unique
   
-  user          User            @relation(fields: [sender], references: [walletAddress])
+  entry           Entry?          @relation("TransactionEntry", fields: [entryId], references: [id])
+  raffle          Raffle?         @relation("TransactionRaffle", fields: [raffleId], references: [id])
+  auction         Auction?        @relation("TransactionAuction", fields: [auctionId], references: [id])
+  bid             Bid?            @relation("TransactionBid")
+  gumball         Gumball?        @relation("TransactionGumball", fields: [gumballId], references: [id])
+  gumballSpin     GumballSpin?    @relation("TransactionGumballSpin", fields: [gumballSpinId], references: [id])
+  user            User            @relation(fields: [sender], references: [walletAddress])
+
   @@map("transactions")
   @@index([sender])
   @@index([receiver])
   @@index([transactionId])
   @@index([entryId])
   @@index([raffleId])
+  @@index([auctionId])
+  @@index([gumballId])
+  @@index([gumballSpinId])
 }
 
 model User {
-  id                String   @id @default(uuid())
-  walletAddress     String   @unique
-  createdAt         DateTime @default(now())
-  twitterId         String?   @unique
-  twitterConnected  Boolean  @default(false)
-  rafflesCreated    Raffle[]     @relation("RaffleCreator")
-  favouriteRaffles  Raffle[]     @relation("FavouriteRaffle")
+  id                String        @id @default(uuid())
+  walletAddress     String        @unique
+  createdAt         DateTime      @default(now())
+  twitterId         String?       @unique
+  twitterConnected  Boolean       @default(false)
+  
+  rafflesCreated    Raffle[]      @relation("RaffleCreator")
+  favouriteRaffles  Raffle[]      @relation("FavouriteRaffle")
   raffleEntries     Entry[]       @relation("UserEntries")
   transactions      Transaction[]
   raffleWinnings    Raffle[]      @relation("RaffleWinner")
- 
+  auctionsCreated   Auction[]     @relation("AuctionCreator")
+  bidsPlaced        Bid[]         @relation("BidderBids")
+  auctionsWon       Auction[]     @relation("AuctionWinner")
+  favouriteAuctions Auction[]     @relation("FavouriteAuction")
+  gumballsCreated   Gumball[]     @relation("GumballCreator")
+  gumballSpins      GumballSpin[] @relation("GumballSpinner")
+  gumballWinnings   GumballSpin[] @relation("GumballWinner")
+
   @@map("users")
   @@index([walletAddress])
 }

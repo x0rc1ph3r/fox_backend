@@ -8,31 +8,58 @@ enum TransactionType {
   RAFFLE_REFUND
   RAFFLE_PURCHASE
   RAFFLE_DEPOSIT
+  AUCTION_CREATION
+  AUCTION_BID
+  AUCTION_CANCEL
+  AUCTION_END
+  AUCTION_CLAIM
+  AUCTION_REFUND
+  AUCTION_PURCHASE
+  AUCTION_DEPOSIT
+  GUMBALL_CREATION
+  GUMBALL_ACTIVATE
+  GUMBALL_PRIZE_ADD
+  GUMBALL_SPIN
+  GUMBALL_END
+  GUMBALL_CANCEL
+  GUMBALL_CLAIM_PRIZE
+  GUMBALL_UPDATE
 }
 
+
 model Transaction {
-  id            String          @id @default(uuid())
-  transactionId String          @unique
-  type          TransactionType
-  sender        String
-  receiver      String
-  createdAt     DateTime        @default(now())
-  amount        BigInt
-  isNft         Boolean         @default(false)
-  mintAddress   String          //a unified field for both token and nft transactions
-  metadata      Json?           //metadata for the transaction
+  id              String          @id @default(uuid())
+  transactionId   String          @unique
+  type            TransactionType
+  sender          String
+  receiver        String
+  createdAt       DateTime        @default(now())
+  amount          BigInt
+  isNft           Boolean         @default(false)
+  mintAddress     String
+  metadata        Json?
   
-  entryId       Int?            
-  raffleId      Int?            
-  entry       Entry?            @relation("TransactionEntry", fields: [entryId], references: [id])
-  raffle      Raffle?           @relation("TransactionRaffle", fields: [raffleId], references: [id])
+  entryId         Int?
+  raffleId        Int?
+  auctionId       Int?
+  gumballId       Int?
+  gumballSpinId   Int?            @unique
   
-  user          User            @relation(fields: [sender], references: [walletAddress])
+  entry           Entry?          @relation("TransactionEntry", fields: [entryId], references: [id])
+  raffle          Raffle?         @relation("TransactionRaffle", fields: [raffleId], references: [id])
+  auction         Auction?        @relation("TransactionAuction", fields: [auctionId], references: [id])
+  bid             Bid?            @relation("TransactionBid")
+  gumball         Gumball?        @relation("TransactionGumball", fields: [gumballId], references: [id])
+  gumballSpin     GumballSpin?    @relation("TransactionGumballSpin", fields: [gumballSpinId], references: [id])
+  user            User            @relation(fields: [sender], references: [walletAddress])
+
   @@map("transactions")
   @@index([sender])
   @@index([receiver])
   @@index([transactionId])
   @@index([entryId])
   @@index([raffleId])
+  @@index([auctionId])
+  @@index([gumballId])
+  @@index([gumballSpinId])
 }
-

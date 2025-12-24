@@ -7,6 +7,8 @@ import userRouter from "../routes/userRoutes";
 import passport from "./passportConfig";
 import session from "express-session";
 import raffleRouter from "../routes/raffleRoutes";
+import auctionRouter from "../routes/auctionRoutes";
+import gumballRouter from "../routes/gumballRoutes";
 
 export const app = express();
 
@@ -73,6 +75,8 @@ app.use(passport.session())
 
 app.use("/api/user", userRouter);
 app.use("/api/raffle",raffleRouter);
+app.use("/api/auction", auctionRouter);
+app.use("/api/gumball", gumballRouter);
 
 const serverConn = createServer(app);
 
