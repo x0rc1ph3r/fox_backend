@@ -478,6 +478,9 @@ const deleteRaffle = async (req: Request, res: Response) => {
   const raffleId = parseInt(params.raffleId);
   const userAddress = req.user as string;
   try{
+    if(!raffleId){
+      return responseHandler.error(res, "Raffle ID is required");
+    }
   const raffle = await prismaClient.raffle.findUnique({
     where: {
       id: raffleId,

@@ -418,7 +418,34 @@ const placeBid = async (req: Request, res: Response) => {
         };
       }
 
-      // Create the bid
+      // Calculate new end time if time extension is configured
+      let newEndsAt = auction.endsAt;
+      if (auction.timeExtension) {
+        const timeUntilEnd = auction.endsAt.getTime() - Date.now();
+        const extensionThreshold = auction.timeExtension * 60 * 1000; // Convert minutes to ms
+        if (timeUntilEnd < extensionThreshold) {
+          newEndsAt = new Date(Date.now() + extensionThreshold);
+        }
+      }
+
+      // Create the transaction first (before bid, due to foreign key constraint)
+      await tx.transaction.create({
+        data: {
+          transactionId: parsedData.txSignature,
+          type: "AUCTION_BID",
+          sender: userAddress,
+          receiver: auction.auctionPda || "system",
+          amount: BigInt(parsedData.bidAmount),
+          mintAddress: auction.currency === "SOL" ? "So11111111111111111111111111111111111111112" : auction.currency,
+          metadata: {
+            bidAmount: parsedData.bidAmount,
+            auctionId: auctionId.toString(),
+          },
+          auctionId: auctionId,
+        },
+      });
+
+      // Create the bid (now that the transaction exists)
       const bid = await tx.bid.create({
         data: {
           auctionId: auctionId,
@@ -433,16 +460,6 @@ const placeBid = async (req: Request, res: Response) => {
           code: "DB_ERROR",
           message: "Bid not created",
         };
-      }
-
-      // Calculate new end time if time extension is configured
-      let newEndsAt = auction.endsAt;
-      if (auction.timeExtension) {
-        const timeUntilEnd = auction.endsAt.getTime() - Date.now();
-        const extensionThreshold = auction.timeExtension * 60 * 1000; // Convert minutes to ms
-        if (timeUntilEnd < extensionThreshold) {
-          newEndsAt = new Date(Date.now() + extensionThreshold);
-        }
       }
 
       // Update the auction with new highest bid
@@ -463,23 +480,6 @@ const placeBid = async (req: Request, res: Response) => {
           message: "Auction not updated",
         };
       }
-
-      // Create the transaction
-      await tx.transaction.create({
-        data: {
-          transactionId: parsedData.txSignature,
-          type: "AUCTION_BID",
-          sender: userAddress,
-          receiver: auction.auctionPda || "system",
-          amount: BigInt(parsedData.bidAmount),
-          mintAddress: auction.currency === "SOL" ? "So11111111111111111111111111111111111111112" : auction.currency,
-          metadata: {
-            bidAmount: parsedData.bidAmount,
-            auctionId: auctionId.toString(),
-          },
-          auctionId: auctionId,
-        },
-      });
     });
     responseHandler.success(res, {
       message: "Bid placed successfully",
