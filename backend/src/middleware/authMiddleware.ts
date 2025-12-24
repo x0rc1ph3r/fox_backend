@@ -7,7 +7,10 @@ const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
         return res.status(401).json({ message: "Unauthorized" });
     }
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {publicKey: string, userId: string};
+        const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {publicKey: string, userId: string, exp: number};
+        if(!decoded){
+            throw new Error("Token invalid");
+        }
         req.user = decoded.publicKey;
         next();
     } catch (error) {

@@ -11,6 +11,38 @@ import raffleRouter from "../routes/raffleRoutes";
 export const app = express();
 
 app.set('trust proxy', 1);
+app.use(cors({
+    origin: function (origin, callback) {
+        const allowedOrigins = [
+            'https://lively-selkie-af66c7.netlify.app',
+            'http://localhost:5173',
+            'http://localhost:3000',
+        ];
+        
+        // Check if the origin is in the allowed list or matches patterns
+        if (!origin) {
+            // Allow requests with no origin (like mobile apps, curl, Postman)
+            return callback(null, true);
+        }
+        
+        if (
+            allowedOrigins.includes(origin) ||
+            origin.endsWith('.ngrok-free.app') ||
+            origin.endsWith('.netlify.app')
+        ) {
+            // Return the specific origin, not '*'
+            callback(null, true);
+        } else {
+            console.log('❌ Blocked origin:', origin);
+            callback(null, false); // Don't throw error, just don't allow
+        }
+    },
+    // credentials: true, // This requires specific origin, not '*'
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'ngrok-skip-browser-warning'],
+    exposedHeaders: ['Set-Cookie'],
+}));
+
 const ratelimiter = rateLimit({
     windowMs: 5 * 60 * 1000, 
     max: 100, 
@@ -22,12 +54,7 @@ const ratelimiter = rateLimit({
 app.use(ratelimiter);
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors({
-    credentials: true,
-    origin: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
-}));
+
 app.use(session({
     secret: process.env.SESSION_SECRET as string,
     resave: false,

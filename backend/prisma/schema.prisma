@@ -11,22 +11,28 @@ datasource db {
 }
 
 model Entry {
-  id           String @id @default(uuid())
+  id           Int @id @default(autoincrement())
   userAddress  String
-  raffleId     String
+  raffleId     Int
   quantity     Int    @default(1)
 
   user         User   @relation("UserEntries", fields: [userAddress], references: [walletAddress], onDelete: Cascade, map: "entries_user_fkey")
   raffle       Raffle @relation("RaffleEntries", fields: [raffleId], references: [id], onDelete: Cascade, map: "entries_raffle_fkey")
-
+  transactions Transaction[] @relation("TransactionEntry")
   @@map("entries")
   @@index([userAddress])
   @@index([raffleId])
   @@unique([userAddress, raffleId])
 }
 
+enum PrizeDataType {
+  TOKEN
+  NFT
+}
+
 model PrizeData {
-  id          String  @id @default(uuid())
+  id          Int     @id @default(autoincrement())
+  type        PrizeDataType @default(TOKEN)
   address     String
   mintAddress String
   mint        String
@@ -41,7 +47,7 @@ model PrizeData {
   description String?
   externalUrl String?
   properties  Json?
-  raffleId    String  @unique
+  raffleId    Int     @unique
   amount      Float? //amount for SPL tokens
   floor       Float? //floor price for nft
 
@@ -61,8 +67,8 @@ enum RaffleState {
 }
 
 model Raffle {
-  id                 String      @id @default(uuid())
-  raffle             String?      @unique //raffle address to be fetched later
+  id                 Int         @id @default(autoincrement())
+  raffle             String?     @unique //raffle address to be fetched later
   createdAt          DateTime    @default(now())
   endsAt             DateTime
   state              RaffleState @default(None)
@@ -89,7 +95,7 @@ model Raffle {
   winners       User[]      @relation("RaffleWinner")
   raffleEntries Entry[]     @relation("RaffleEntries")
   prizeData     PrizeData?  @relation("RafflePrize")
-
+  transactions Transaction[] @relation("TransactionRaffle")
   @@index([createdBy])
   @@index([raffle])
   @@index([endsAt])
@@ -118,12 +124,20 @@ model Transaction {
   amount        BigInt
   isNft         Boolean         @default(false)
   mintAddress   String          //a unified field for both token and nft transactions
-
+  metadata      Json?           //metadata for the transaction
+  
+  entryId       Int?            
+  raffleId      Int?            
+  entry       Entry?            @relation("TransactionEntry", fields: [entryId], references: [id])
+  raffle      Raffle?           @relation("TransactionRaffle", fields: [raffleId], references: [id])
+  
   user          User            @relation(fields: [sender], references: [walletAddress])
   @@map("transactions")
   @@index([sender])
   @@index([receiver])
   @@index([transactionId])
+  @@index([entryId])
+  @@index([raffleId])
 }
 
 model User {

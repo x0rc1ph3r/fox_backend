@@ -20,11 +20,19 @@ model Transaction {
   amount        BigInt
   isNft         Boolean         @default(false)
   mintAddress   String          //a unified field for both token and nft transactions
-
+  metadata      Json?           //metadata for the transaction
+  
+  entryId       Int?            
+  raffleId      Int?            
+  entry       Entry?            @relation("TransactionEntry", fields: [entryId], references: [id])
+  raffle      Raffle?           @relation("TransactionRaffle", fields: [raffleId], references: [id])
+  
   user          User            @relation(fields: [sender], references: [walletAddress])
   @@map("transactions")
   @@index([sender])
   @@index([receiver])
   @@index([transactionId])
+  @@index([entryId])
+  @@index([raffleId])
 }
 

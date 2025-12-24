@@ -7,6 +7,7 @@ const userRouter = express.Router();
 
 userRouter.get("/auth/request-message/:publicKey",userController.requestMessage)
 userRouter.post("/auth/verify",userController.verifyMessage);
+userRouter.post("/auth/refresh",userController.refreshToken);
 
 //Twitter Auth Routes
 userRouter.get("/auth/twitter/callback", (req,res,next)=>{

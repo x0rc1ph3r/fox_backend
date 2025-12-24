@@ -10,6 +10,7 @@ import {
 import logger from "../utils/logger";
 import { responseHandler } from "../utils/resHandler";
 import { authVerifySchema } from "../schemas";
+import jwt from "jsonwebtoken";
 
 export default {
   requestMessage: async (req: Request, res: Response) => {
@@ -58,4 +59,29 @@ export default {
       return responseHandler.error(res, e);
     }
   },
+  refreshToken: async(req:Request,res:Response)=>{
+    const token = req.headers?.authorization?.split(" ")[1];
+    try {
+      const decoded = jwt.verify(
+          token!, 
+          process.env.JWT_SECRET as string,
+          { ignoreExpiration: true } 
+      ) as { publicKey: string, userId: string };
+
+      const newToken = jwt.sign(
+          { 
+              publicKey: decoded.publicKey, 
+              userId: decoded.userId 
+          },
+          process.env.JWT_SECRET as string,
+          { expiresIn: '7d' } 
+      );
+
+      res.json({ token: newToken });
+  } catch (error) {
+      console.error(error);
+      return res.status(401).json({ message: "Invalid token" });
+  }
+
+  }
 };

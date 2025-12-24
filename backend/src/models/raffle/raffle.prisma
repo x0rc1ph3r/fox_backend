@@ -8,8 +8,8 @@ enum RaffleState {
 }
 
 model Raffle {
-  id                 String      @id @default(uuid())
-  raffle             String?      @unique //raffle address to be fetched later
+  id                 Int         @id @default(autoincrement())
+  raffle             String?     @unique //raffle address to be fetched later
   createdAt          DateTime    @default(now())
   endsAt             DateTime
   state              RaffleState @default(None)
@@ -36,7 +36,7 @@ model Raffle {
   winners       User[]      @relation("RaffleWinner")
   raffleEntries Entry[]     @relation("RaffleEntries")
   prizeData     PrizeData?  @relation("RafflePrize")
-
+  transactions Transaction[] @relation("TransactionRaffle")
   @@index([createdBy])
   @@index([raffle])
   @@index([endsAt])

@@ -15,12 +15,10 @@ import { claimPrizeSchema } from "../schemas/raffle/claimPrize.schema";
 
 const createRaffle = async (req: Request, res: Response) => {
   const body = req.body;
-  const { success, data: parsedData } = raffleSchema.safeParse(body);
+  const { success, data: parsedData ,error} = raffleSchema.safeParse(body);
   if (!success) {
+    console.log(error);
     return responseHandler.error(res, "Invalid payload");
-  }
-  if (parsedData.createdAt && parsedData.createdAt < new Date()) {
-    return responseHandler.error(res, "Invalid createdAt");
   }
   if (
     parsedData.endsAt &&
@@ -37,6 +35,7 @@ const createRaffle = async (req: Request, res: Response) => {
       ...raffleData,
       prizeData: {
         create: {
+          type: prizeData.type,
           address: prizeData.address,
           mintAddress: prizeData.mintAddress,
           mint: prizeData.mint,
@@ -69,7 +68,8 @@ const createRaffle = async (req: Request, res: Response) => {
 };
 
 const confirmRaffleCreation = async (req: Request, res: Response) => {
-  const { raffleId } = req.params;
+  const params = req.params;
+  const raffleId = parseInt(params.raffleId);
   const body = req.body;
   const { success, data: parsedData } =
     confirmRaffleCreationSchema.safeParse(body);
@@ -180,6 +180,9 @@ const getRaffles = async (req: Request, res: Response) => {
     orderBy: {
       createdAt: "desc",
     },
+    include:{
+      prizeData:true,
+    }
   });
   responseHandler.success(res, {
     message: "Raffles fetched successfully",
@@ -189,11 +192,32 @@ const getRaffles = async (req: Request, res: Response) => {
 };
 
 const getRaffleDetails = async (req: Request, res: Response) => {
-  const { raffleId } = req.params;
+  const params = req.params;
+  const raffleId = parseInt(params.raffleId);
   const raffle = await prismaClient.raffle.findUnique({
     where: {
       id: raffleId,
     },
+    include:{
+      prizeData:true,
+      raffleEntries:{
+        include:{
+          transactions:true,
+        },
+      },
+      winners:{
+        select:{
+          walletAddress:true,
+          twitterId:true,
+        }
+      },
+      favouritedBy:{
+        select:{
+          walletAddress:true,
+          twitterId:true,
+        }
+      },
+    }
   });
   if (!raffle) {
     return responseHandler.error(res, "Raffle not found");
@@ -229,7 +253,8 @@ const getRafflesByUser = async (req: Request, res: Response) => {
 };
 
 const cancelRaffle = async (req: Request, res: Response) => {
-  const { raffleId } = req.params;
+  const params = req.params;
+  const raffleId = parseInt(params.raffleId);
   const userAddress = req.user;
   const body = req.body;
 
@@ -245,7 +270,9 @@ const cancelRaffle = async (req: Request, res: Response) => {
   if (!validatedTransaction) {
     return responseHandler.error(res, "Invalid transaction");
   }
-
+  if(!raffleId){
+    return responseHandler.error(res, "Raffle ID is required");
+  }
   try {
     const raffle = await prismaClient.raffle.findUnique({
       where: {
@@ -266,7 +293,7 @@ const cancelRaffle = async (req: Request, res: Response) => {
       };
     }
     await prismaClient.$transaction(async (tx) => {
-      const updatedRaffle = await tx.raffle.update({
+      await tx.raffle.update({
         where: {
           id: raffleId,
         },
@@ -279,8 +306,8 @@ const cancelRaffle = async (req: Request, res: Response) => {
         data: {
           transactionId: parsedData.txSignature,
           type: "RAFFLE_CANCEL",
-          sender: "system",
-          receiver: raffle.createdBy,
+          sender: raffle.createdBy,
+          receiver: "system",
           amount: BigInt(0),
           mintAddress: "So11111111111111111111111111111111111111112",
         },
@@ -299,9 +326,9 @@ const cancelRaffle = async (req: Request, res: Response) => {
 };
 
 const buyTicket = async (req: Request, res: Response) => {
-  const { raffleId } = req.params;
+  const params = req.params;
+  const raffleId = parseInt(params.raffleId);
   const userAddress = req.user as string;
-  console.log("userAddress", userAddress);
   const body = req.body;
   const { success, data: parsedData } = buyTicketSchema.safeParse(body);
   if (!success) {
@@ -309,7 +336,6 @@ const buyTicket = async (req: Request, res: Response) => {
   }
 
   const validatedTransaction = await verifyTransaction(parsedData.txSignature);
-  console.log("validatedTransaction", validatedTransaction);
   if (!validatedTransaction) {
     return responseHandler.error(res, "Invalid transaction");
   }
@@ -321,6 +347,7 @@ const buyTicket = async (req: Request, res: Response) => {
           id: raffleId,
         },
       });
+
       if (!raffle || raffle.state != "Active") {
         throw {
           code: "DB_ERROR",
@@ -330,7 +357,7 @@ const buyTicket = async (req: Request, res: Response) => {
       if (raffle.ticketSold + parsedData.quantity > raffle.ticketSupply) {
         throw {
           code: "DB_ERROR",
-          message: "Raffle is sold out",
+          message: "Quantity exceeds ticket supply",
         };
       }
       if (parsedData.quantity > raffle.maxEntries) {
@@ -347,15 +374,17 @@ const buyTicket = async (req: Request, res: Response) => {
           userAddress: userAddress,
         },
       });
+      let entryId = null;
       if (existingEntry) {
         if (existingEntry.quantity + parsedData.quantity > raffle.maxEntries) {
+         
           throw {
             code: "DB_ERROR",
             message: "Quantity exceeds max entries",
           };
         } else if (
           existingEntry.quantity + parsedData.quantity >
-          raffle.ticketSold
+          raffle.ticketSupply
         ) {
           throw {
             code: "DB_ERROR",
@@ -370,6 +399,7 @@ const buyTicket = async (req: Request, res: Response) => {
               quantity: existingEntry.quantity + parsedData.quantity,
             },
           });
+          entryId = existingEntry.id;
         }
       } else {
         const entry = await tx.entry.create({
@@ -386,6 +416,7 @@ const buyTicket = async (req: Request, res: Response) => {
             message: "Entry not created",
           };
         }
+        entryId = entry.id;
       }
 
       //Update the raffle
@@ -423,6 +454,11 @@ const buyTicket = async (req: Request, res: Response) => {
           receiver: raffle.raffle || "system",
           amount: parsedData.quantity * raffle.ticketPrice,
           mintAddress: raffle.ticketTokenAddress,
+          metadata: {
+            quantity: parsedData.quantity,
+            raffleId: raffleId.toString(),
+          },
+          entryId: entryId,
         },
       });
     });
@@ -437,8 +473,40 @@ const buyTicket = async (req: Request, res: Response) => {
   }
 };
 
+const deleteRaffle = async (req: Request, res: Response) => {
+  const params = req.params;
+  const raffleId = parseInt(params.raffleId);
+  const userAddress = req.user as string;
+  try{
+  const raffle = await prismaClient.raffle.findUnique({
+    where: {
+      id: raffleId,
+    },
+  });
+  if (!raffle) {
+    return responseHandler.error(res, "Raffle not found");
+  }
+  if (raffle.createdBy !== userAddress) {
+    return responseHandler.error(res, "You are not the creator of this raffle");
+  }
+  await prismaClient.raffle.delete({
+    where: {
+      id: raffleId,
+    },
+  });
+  responseHandler.success(res, {
+    message: "Raffle deleted successfully",
+    error: null,
+      raffleId: raffleId,
+    });
+  } catch (error) {
+    logger.error(error);
+    responseHandler.error(res, error);
+  }
+};
 const claimPrize = async (req: Request, res: Response) => {
-  const { raffleId } = req.params;
+  const params = req.params;
+  const raffleId = parseInt(params.raffleId);
   const userAddress = req.user as string;
   const body = req.body;
 
@@ -523,7 +591,7 @@ const claimPrize = async (req: Request, res: Response) => {
         where: {
           type: "RAFFLE_CLAIM",
           sender: userAddress,
-          receiver: raffle.raffle || raffleId,
+          receiver: raffle.raffle || raffleId.toString(),
         },
       });
       if (existingClaim) {
@@ -559,9 +627,9 @@ const claimPrize = async (req: Request, res: Response) => {
           transactionId: parsedData.txSignature,
           type: "RAFFLE_CLAIM",
           sender: userAddress,
-          receiver: raffle.raffle || raffleId,
+          receiver: raffle.raffle || raffleId.toString(),
           amount: amount,
-          mintAddress: raffle.prize || "unknown",
+          mintAddress: raffle.prizeData?.mintAddress || "unknown",
         },
       });
     });
@@ -590,4 +658,5 @@ export default {
   cancelRaffle,
   buyTicket,
   claimPrize,
+  deleteRaffle,
 };

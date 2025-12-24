@@ -1,5 +1,11 @@
+enum PrizeDataType {
+  TOKEN
+  NFT
+}
+
 model PrizeData {
-  id          String  @id @default(uuid())
+  id          Int     @id @default(autoincrement())
+  type        PrizeDataType @default(TOKEN)
   address     String
   mintAddress String
   mint        String
@@ -14,7 +20,7 @@ model PrizeData {
   description String?
   externalUrl String?
   properties  Json?
-  raffleId    String  @unique
+  raffleId    Int     @unique
   amount      Float? //amount for SPL tokens
   floor       Float? //floor price for nft
 
