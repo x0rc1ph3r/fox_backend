@@ -2,8 +2,11 @@ import express from "express";
 import userController from "../controller/userController";
 import passport from "../config/passportConfig";
 import { Session } from "express-session";
+import authMiddleware from "../middleware/authMiddleware";
 
 const userRouter = express.Router();
+
+// ==================== AUTH ROUTES ====================
 
 userRouter.get("/auth/request-message/:publicKey",userController.requestMessage)
 userRouter.post("/auth/verify",userController.verifyMessage);
@@ -41,5 +44,60 @@ userRouter.get("/auth/twitter/:walletAddress",(req, res, next) => {
     scope: ["tweet.read", "users.read","offline.access"],
     session: true,
 }));
+
+// ==================== PROFILE ROUTES ====================
+
+// Get authenticated user's own profile
+userRouter.get("/profile/me", authMiddleware, userController.getMyProfile);
+
+// Get user profile by wallet address (public)
+userRouter.get("/profile/:walletAddress", userController.getProfile);
+
+// ==================== RAFFLE PROFILE DATA ====================
+
+// Get raffles created by user
+userRouter.get("/profile/:walletAddress/raffles/created", userController.getRafflesCreated);
+
+// Get raffles purchased by user
+userRouter.get("/profile/:walletAddress/raffles/purchased", userController.getRafflesPurchased);
+
+// Get favourite raffles
+userRouter.get("/profile/:walletAddress/raffles/favourites", userController.getFavouriteRaffles);
+
+// Get raffle stats for user
+userRouter.get("/profile/:walletAddress/raffles/stats", userController.getRaffleStats);
+
+// ==================== AUCTION PROFILE DATA ====================
+
+// Get auctions created by user
+userRouter.get("/profile/:walletAddress/auctions/created", userController.getAuctionsCreated);
+
+// Get auctions participated by user
+userRouter.get("/profile/:walletAddress/auctions/participated", userController.getAuctionsParticipated);
+
+// Get favourite auctions
+userRouter.get("/profile/:walletAddress/auctions/favourites", userController.getFavouriteAuctions);
+
+// Get auction stats for user
+userRouter.get("/profile/:walletAddress/auctions/stats", userController.getAuctionStats);
+
+// ==================== GUMBALL PROFILE DATA ====================
+
+// Get gumballs created by user
+userRouter.get("/profile/:walletAddress/gumballs/created", userController.getGumballsCreated);
+
+// Get gumballs purchased by user
+userRouter.get("/profile/:walletAddress/gumballs/purchased", userController.getGumballsPurchased);
+
+// Get gumball stats for user
+userRouter.get("/profile/:walletAddress/gumballs/stats", userController.getGumballStats);
+
+// ==================== FAVOURITES MANAGEMENT ====================
+
+// Toggle favourite raffle (requires auth)
+userRouter.post("/favourites/raffle/:raffleId", authMiddleware, userController.toggleFavouriteRaffle);
+
+// Toggle favourite auction (requires auth)
+userRouter.post("/favourites/auction/:auctionId", authMiddleware, userController.toggleFavouriteAuction);
 
 export default userRouter;
