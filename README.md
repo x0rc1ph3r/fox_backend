@@ -1,2 +1,0 @@
-# raffle
-Decentrlaized raffle platform
