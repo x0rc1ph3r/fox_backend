@@ -19,7 +19,7 @@ export default {
       const publicKey = req.params.publicKey;
       validatePublicKey(publicKey);
       const payload = await generateAuthMessage(publicKey);
-      return responseHandler.success(res,payload);
+      return responseHandler.success(res, payload);
     } catch (e) {
       logger.error(e);
       responseHandler.error(res, e);
@@ -29,15 +29,15 @@ export default {
   verifyMessage: async (req: Request, res: Response) => {
     const data = req.body;
     const { success, data: parsedData } = authVerifySchema.safeParse(data);
-    
+
     try {
-      
+
       if (!success) {
         throw "Invalid payload"
       }
-      
+
       const { publicKey, signature, message } = parsedData;
-      
+
       await verifySignature(publicKey, signature, message);
       const nonce = message.split("Nonce:")[1].trim();
 
@@ -47,9 +47,9 @@ export default {
 
       await verifyNonce(nonce, publicKey);
 
-      const { user,token } = await findOrCreateUser(publicKey);
-      
-      return responseHandler.success(res,{
+      const { user, token } = await findOrCreateUser(publicKey);
+
+      return responseHandler.success(res, {
         message: "Signature verified",
         error: null,
         token,
@@ -60,29 +60,29 @@ export default {
       return responseHandler.error(res, e);
     }
   },
-  refreshToken: async(req:Request,res:Response)=>{
+  refreshToken: async (req: Request, res: Response) => {
     const token = req.headers?.authorization?.split(" ")[1];
     try {
       const decoded = jwt.verify(
-          token!, 
-          process.env.JWT_SECRET as string,
-          { ignoreExpiration: true } 
+        token!,
+        process.env.JWT_SECRET as string,
+        { ignoreExpiration: true }
       ) as { publicKey: string, userId: string };
 
       const newToken = jwt.sign(
-          { 
-              publicKey: decoded.publicKey, 
-              userId: decoded.userId 
-          },
-          process.env.JWT_SECRET as string,
-          { expiresIn: '7d' } 
+        {
+          publicKey: decoded.publicKey,
+          userId: decoded.userId
+        },
+        process.env.JWT_SECRET as string,
+        { expiresIn: '7d' }
       );
 
       res.json({ token: newToken });
-  } catch (error) {
+    } catch (error) {
       console.error(error);
       return res.status(401).json({ message: "Invalid token" });
-  }
+    }
 
   },
 
@@ -90,7 +90,7 @@ export default {
   getProfile: async (req: Request, res: Response) => {
     try {
       const { walletAddress } = req.params;
-      
+
       const user = await prismaClient.user.findUnique({
         where: { walletAddress },
         select: {
@@ -120,7 +120,7 @@ export default {
   getMyProfile: async (req: Request, res: Response) => {
     try {
       const walletAddress = req.user as string;
-      
+
       const user = await prismaClient.user.findUnique({
         where: { walletAddress },
         select: {
@@ -217,7 +217,7 @@ export default {
       });
 
       // Transform to include win status
-      const raffles = entries.map((entry) => ({
+      const raffles = entries.map((entry: { raffle: { winners: any[]; }; quantity: any; }) => ({
         ...entry.raffle,
         ticketsBought: entry.quantity,
         isWinner: entry.raffle.winners.some((w) => w.walletAddress === walletAddress),
@@ -302,9 +302,9 @@ export default {
       });
 
       const rafflesBought = entries.length;
-      const ticketsBought = entries.reduce((sum, e) => sum + e.quantity, 0);
+      const ticketsBought = entries.reduce((sum: any, e: { quantity: any; }) => sum + e.quantity, 0);
       const purchaseVolume = entries.reduce(
-        (sum, e) => sum + e.quantity * e.raffle.ticketPrice,
+        (sum: number, e: { quantity: number; raffle: { ticketPrice: number; }; }) => sum + e.quantity * e.raffle.ticketPrice,
         0
       );
 
@@ -469,7 +469,7 @@ export default {
       });
 
       const totalVolumeBid = bids.reduce(
-        (sum, b) => sum + parseFloat(b.bidAmount),
+        (sum: number, b: { bidAmount: string; }) => sum + parseFloat(b.bidAmount),
         0
       );
 
@@ -552,7 +552,7 @@ export default {
         orderBy: { spunAt: "desc" },
       });
 
-      const gumballs = spins.map((spin) => ({
+      const gumballs = spins.map((spin: { gumball: any; prize: any; }) => ({
         ...spin.gumball,
         userSpins: 1, // This would need aggregation for accurate count
         lastPrizeWon: spin.prize,
@@ -602,7 +602,7 @@ export default {
       });
 
       const totalVolumeSpent = spins.reduce(
-        (sum, s) => sum + Number(s.gumball.ticketPrice),
+        (sum: number, s: { gumball: { ticketPrice: any; }; }) => sum + Number(s.gumball.ticketPrice),
         0
       );
 
