@@ -274,7 +274,7 @@ async function startAuction(auctionId: number) {
     }
 }
 
-async function endAuction(auctionId: number, creator: string, winner: string | null) {
+async function endAuction(auctionId: number) {
     try {
         const tx = new Transaction();
 
@@ -377,15 +377,11 @@ async function endAuction(auctionId: number, creator: string, winner: string | n
             throw new Error("Required ATA or escrow account could not be determined");
         }
 
-        if (winner === null) {
-            winner = auctionData.creator.toString();
-        }
-
         const ix = await auctionProgram.methods.completeAuction(auctionId)
             .accounts({
                 auctionAdmin: ADMIN_KEYPAIR.publicKey,
-                creator: new PublicKey(creator),
-                winner: new PublicKey(winner),
+                creator: auctionData.creator,
+                winner: auctionData.highestBidder,
 
                 prizeMint,
                 bidMint: bidMint!,

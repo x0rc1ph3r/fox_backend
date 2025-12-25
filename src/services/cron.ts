@@ -75,7 +75,7 @@ async function processAuctionsToEnd(): Promise<void> {
     for (const auction of auctionsToEnd) {
       try {
         if (!auction.hasAnyBid || auction.bids.length === 0) {
-          endAuction(auction.id, auction.createdBy, null);
+          endAuction(auction.id);
 
           await prismaClient.auction.update({
             where: { id: auction.id },
@@ -89,7 +89,7 @@ async function processAuctionsToEnd(): Promise<void> {
             `[CRON] Auction ${auction.id} ended as COMPLETED_FAILED (no bids)`
           );
         } else {
-          endAuction(auction.id, auction.createdBy, auction.highestBidderWallet);
+          endAuction(auction.id);
 
           await prismaClient.auction.update({
             where: { id: auction.id },
