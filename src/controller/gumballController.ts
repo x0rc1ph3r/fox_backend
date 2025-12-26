@@ -395,6 +395,7 @@ const addPrize = async (req: Request, res: Response) => {
         },
         data: {
           prizesAdded: gumball.prizesAdded + 1,
+          totalTickets:{increment:parsedData.quantity},
           totalPrizeValue: newTotalPrizeValue,
           maxRoi: maxRoi,
         },
@@ -539,6 +540,7 @@ const addMultiplePrizes = async (req: Request, res: Response) => {
         },
         data: {
           prizesAdded: gumball.prizesAdded + parsedData.prizes.length,
+          totalTickets:{increment:newTotalQuantity},
           totalPrizeValue: newTotalPrizeValue,
           maxRoi: maxRoi,
         },
@@ -633,6 +635,9 @@ const prepareSpin = async (req: Request, res: Response) => {
       ticketPrice: gumball.ticketPrice.toString(),
       ticketMint: gumball.ticketMint,
       isTicketSol: gumball.isTicketSol,
+      prizeImage: selectedPrize.image,
+      prizeAmount: selectedPrize.prizeAmount.toString(),
+      isNft:selectedPrize.isNft
     });
   } catch (error) {
     logger.error(error);

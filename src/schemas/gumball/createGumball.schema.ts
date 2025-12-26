@@ -11,7 +11,7 @@ export const gumballSchema = z.object({
   endTime: z.coerce.date(),
   
   // Ticket configuration
-  totalTickets: z.number().int().gt(0),
+  totalTickets: z.number().int(),
   ticketMint: z.string().optional(),
   ticketPrice: z.string().min(1), // BigInt as string
   isTicketSol: z.boolean().default(true),
