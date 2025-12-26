@@ -757,6 +757,8 @@ const spin = async (req: Request, res: Response) => {
           spinnerAddress: userAddress,
           winnerAddress: userAddress,
           prizeAmount: prize.prizeAmount,
+          claimed:true,
+          claimedAt: new Date(),
         },
       });
 
