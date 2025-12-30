@@ -1,5 +1,27 @@
 import { z } from "zod";
 
+//For mainnet
+// export const prizeDataSchema = z.object({
+//     type: z.enum(["TOKEN", "NFT"]).default("TOKEN"),
+//     address: z.string().min(1),
+//     mintAddress: z.string().min(1),
+//     mint: z.string().min(1),
+//     name: z.string().min(1),
+//     verified: z.boolean().optional().default(true),
+//     symbol: z.string().min(1),
+//     decimals: z.number().int().optional(),
+//     image: z.string().min(1),
+//     attributes: z.any().optional(),
+//     collection: z.string().optional(),
+//     creator: z.string().optional(),
+//     description: z.string().optional(),
+//     externalUrl: z.string().optional(),
+//     properties: z.any().optional(),
+//     amount: z.number().gt(0).optional(),
+//     floor: z.number().gt(0).optional(),
+// });
+
+//For devnet
 export const prizeDataSchema = z.object({
     type: z.enum(["TOKEN", "NFT"]).default("TOKEN"),
     address: z.string().min(1),
@@ -7,7 +29,7 @@ export const prizeDataSchema = z.object({
     mint: z.string().min(1),
     name: z.string().min(1),
     verified: z.boolean().optional().default(true),
-    symbol: z.string().min(1),
+    symbol: z.string(),
     decimals: z.number().int().optional(),
     image: z.string().min(1),
     attributes: z.any().optional(),
@@ -16,10 +38,32 @@ export const prizeDataSchema = z.object({
     description: z.string().optional(),
     externalUrl: z.string().optional(),
     properties: z.any().optional(),
-    amount: z.number().gt(0).optional(),
-    floor: z.number().gt(0).optional(),
+    amount: z.number().optional(),
+    floor: z.number().optional(),
 });
 
+//For mainnet
+// export const raffleSchema = z.object({
+//     id: z.number().int().optional(),
+//     raffle: z.string().min(1).optional(),
+//     createdAt: z.coerce.date().min(new Date()).default(new Date()),
+//     endsAt: z.coerce.date().min(new Date()),
+//     createdBy: z.string().min(1),
+//     ticketPrice: z.number().gt(0),
+//     ticketSupply: z.number().gt(0),
+//     ticketTokenAddress: z.string().min(1).optional(),
+//     floor: z.number().gt(0).optional(),
+//     val: z.number().gt(0).optional(),
+//     ttv: z.number().gt(0),
+//     roi: z.number().gt(0),
+//     entriesAddress: z.string().min(1).optional(),
+//     prize: z.string().min(1).optional(),
+//     maxEntries: z.number().gt(0),
+//     numberOfWinners: z.number().gt(0),
+//     prizeData: prizeDataSchema,
+// });
+
+//For devnet
 export const raffleSchema = z.object({
     id: z.number().int().optional(),
     raffle: z.string().min(1).optional(),
@@ -29,10 +73,10 @@ export const raffleSchema = z.object({
     ticketPrice: z.number().gt(0),
     ticketSupply: z.number().gt(0),
     ticketTokenAddress: z.string().min(1).optional(),
-    floor: z.number().gt(0).optional(),
-    val: z.number().gt(0).optional(),
+    floor: z.number().optional(),
+    val: z.number().optional(),
     ttv: z.number().gt(0),
-    roi: z.number().gt(0),
+    roi: z.number(),
     entriesAddress: z.string().min(1).optional(),
     prize: z.string().min(1).optional(),
     maxEntries: z.number().gt(0),
