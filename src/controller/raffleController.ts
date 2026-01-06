@@ -1168,7 +1168,7 @@ const createRaffleTx = async (req: Request, res: Response) => {
         Buffer.from(parsedData.winShares),
         parsedData.isUniqueWinners,
         parsedData.startRaffle,
-        parsedData.maximumTickets,
+        // parsedData.maximumTickets,
       )
       .accounts({
         creator: userPublicKey,
