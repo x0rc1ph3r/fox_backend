@@ -505,7 +505,17 @@ async function endGumball(gumballId: number) {
         let creatorTicketAta = FAKE_ATA;
 
         if (ticketMint) {
-            ticketEscrow = await getAtaAddress(connection, ticketMint, gumballAddress, true);
+                const ticketEscrowRes = await ensureAtaIx({
+                    connection,
+                    mint: ticketMint,
+                    owner: gumballAddress,
+                    payer: wallet.publicKey,
+                    tokenProgram: ticketTokenProgram,
+                    allowOwnerOffCurve: true, // PDA owner
+                });
+
+                ticketEscrow = ticketEscrowRes.ata;
+                if (ticketEscrowRes.ix) tx.add(ticketEscrowRes.ix);
 
             const feeTreasuryRes = await ensureAtaIx({
                 connection,
