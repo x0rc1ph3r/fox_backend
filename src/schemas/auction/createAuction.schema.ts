@@ -36,3 +36,14 @@ export const confirmAuctionCreationSchema = z.object({
   txSignature: z.string().min(1),
 });
 
+export const createAuctionSchema = z.object({
+  startTime: z.number(),
+  endTime: z.number(),
+  prizeMint: z.string(),
+  bidMint: z.string(),
+  startImmediately: z.boolean(),
+  isBidMintSol: z.boolean(),
+  baseBid: z.number(),
+  minIncrement: z.number(),
+  timeExtension: z.number(),
+});

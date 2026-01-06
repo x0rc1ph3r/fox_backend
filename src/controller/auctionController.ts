@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import {
   auctionSchema,
   confirmAuctionCreationSchema,
+  createAuctionSchema,
 } from "../schemas/auction/createAuction.schema";
 import { verifyTransaction } from "../utils/verifyTransaction";
 import prismaClient from "../database/client";
@@ -10,6 +11,11 @@ import logger from "../utils/logger";
 import { cancelAuctionSchema } from "../schemas/auction/cancelAuction.schema";
 import { placeBidSchema } from "../schemas/auction/placeBid.schema";
 import { claimAuctionSchema } from "../schemas/auction/claimAuction.schema";
+import { ADMIN_KEYPAIR, connection } from "../services/solanaconnector";
+import { PublicKey, Transaction } from "@solana/web3.js";
+import { createApproveInstruction, createTransferInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { auctionProgram, FAKE_MINT, getTokenProgramFromMint } from "../utils/helpers";
+import { BN } from "@coral-xyz/anchor";
 
 const createAuction = async (req: Request, res: Response) => {
   const body = req.body;
@@ -386,7 +392,7 @@ const placeBid = async (req: Request, res: Response) => {
       // Check if bid is higher than current highest bid
       const currentHighestBid = BigInt(auction.highestBidAmount);
       const newBidAmount = BigInt(parsedData.bidAmount);
-      
+
       if (auction.hasAnyBid && newBidAmount <= currentHighestBid) {
         throw {
           code: "DB_ERROR",
@@ -498,7 +504,7 @@ const deleteAuction = async (req: Request, res: Response) => {
   const auctionId = parseInt(params.auctionId);
   const userAddress = req.user as string;
   try {
-    if(!auctionId){
+    if (!auctionId) {
       return responseHandler.error(res, "Auction ID is required");
     }
     const auction = await prismaClient.auction.findUnique({
@@ -668,6 +674,77 @@ const getBidsByUser = async (req: Request, res: Response) => {
   });
 };
 
+const createAuctionTx = async (req: Request, res: Response) => {
+  const userAddress = req.user as string;
+  const body = req.body;
+  const { success, data: parsedData } = createAuctionSchema.safeParse(body);
+  if (!success) {
+    return responseHandler.error(res, "Invalid payload");
+  }
+  try {
+    console.log("Creating auction tx for user:", body);
+    const {
+      context: { slot: minContextSlot },
+      value: { blockhash, lastValidBlockHeight },
+    } = await connection.getLatestBlockhashAndContext();
+
+    const transaction = new Transaction({
+      blockhash,
+      lastValidBlockHeight,
+      feePayer: new PublicKey(userAddress),
+    });
+
+    const prizeTokenProgram = await getTokenProgramFromMint(
+      connection,
+      new PublicKey(parsedData.prizeMint)
+    );
+
+    const ix = await auctionProgram.methods
+      .createAuction(
+        new BN(parsedData.startTime),
+        new BN(parsedData.endTime),
+        parsedData.startImmediately,
+        parsedData.isBidMintSol,
+        new BN(parsedData.baseBid),
+        new BN(parsedData.minIncrement),
+        parsedData.timeExtension
+      )
+      .accounts({
+        creator: new PublicKey(userAddress),
+        auctionAdmin: ADMIN_KEYPAIR.publicKey,
+
+        prizeMint: new PublicKey(parsedData.prizeMint),
+        bidMint: parsedData.bidMint ? new PublicKey(parsedData.bidMint) : FAKE_MINT,
+
+        prizeTokenProgram,
+      })
+      .instruction();
+
+    transaction.add(ix);
+
+    transaction.partialSign(ADMIN_KEYPAIR);
+
+    const serializedTransaction = transaction.serialize({
+      verifySignatures: false,
+      requireAllSignatures: false,
+    });
+
+    const base64Transaction = serializedTransaction.toString('base64');
+
+    res.status(200).json({
+      base64Transaction,
+      minContextSlot,
+      blockhash,
+      lastValidBlockHeight,
+      message: "OK",
+    });
+
+  } catch (error) {
+    logger.error(error);
+    responseHandler.error(res, error);
+  }
+};
+
 export default {
   createAuction,
   confirmAuctionCreation,
@@ -679,5 +756,6 @@ export default {
   claimAuction,
   deleteAuction,
   getBidsByUser,
+  createAuctionTx,
 };
 
