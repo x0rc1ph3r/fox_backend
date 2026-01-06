@@ -90,3 +90,21 @@ export const raffleSchema = z.object({
 export const confirmRaffleCreationSchema = z.object({
     txSignature: z.string().min(1),
 });
+
+export const createRaffleSchema = z.object({
+    startTime: z.number(),
+    endTime: z.number(),
+    maximumTickets: z.number(),
+    totalTickets: z.number(),
+    ticketPrice: z.number(),
+    isTicketSol: z.boolean(),
+    maxPerWalletPct: z.number(),
+    prizeType: z.number(),
+    prizeAmount: z.number(),
+    numWinners: z.number(),
+    winShares: z.number().array(),
+    isUniqueWinners: z.boolean(),
+    startRaffle: z.boolean(),
+    ticketMint: z.string(),
+    prizeMint: z.string(),
+});

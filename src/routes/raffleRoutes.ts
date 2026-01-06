@@ -16,4 +16,10 @@ raffleRouter.post("/buy/:raffleId",authMiddleware,raffleController.buyTicket);
 raffleRouter.post("/claim/:raffleId",authMiddleware,raffleController.claimPrize);
 
 raffleRouter.delete("/delete/:raffleId",authMiddleware,raffleController.deleteRaffle);
+
+raffleRouter.get("/cancel-tx/:raffleId", authMiddleware, raffleController.cancelRaffleTx);
+raffleRouter.get("/claim-tx/:raffleId", authMiddleware, raffleController.buyerClaimPrizeTx);
+raffleRouter.post("/buy-ticket-tx", authMiddleware, raffleController.buyTicketTx);
+raffleRouter.post("/create-tx", authMiddleware, raffleController.createRaffleTx);
+
 export default raffleRouter;

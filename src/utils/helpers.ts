@@ -10,12 +10,15 @@ import { Connection } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { provider } from "../services/solanaconnector";
 import auctionIdl from "../types/auction.json";
+import raffleIdl from "../types/raffle.json";
 import type { Auction } from "../types/auction";
+import { Raffle } from "../types/raffle";
 
 export const FAKE_MINT = new PublicKey('So11111111111111111111111111111111111111112');
 export const FAKE_ATA = new PublicKey('B9W4wPFWjTbZ9ab1okzB4D3SsGY7wntkrBKwpp5RC1Uv')
 
 export const auctionProgram = new anchor.Program<Auction>(auctionIdl as anchor.Idl, provider);
+export const raffleProgram = new anchor.Program<Raffle>(raffleIdl as anchor.Idl, provider);
 
 export async function ensureAtaIx(params: {
   connection: Connection;
