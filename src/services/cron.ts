@@ -251,17 +251,21 @@ async function processExpiredRaffles(): Promise<void> {
   const now = new Date();
 
   try {
-    const expiredRaffles = await prismaClient.raffle.findMany({
+    // Fetch all active raffles that haven't picked winners yet
+    const activeRaffles = await prismaClient.raffle.findMany({
       where: {
         state: "Active",
-        endsAt: {
-          lte: now,
-        },
         winnerPicked: false,
       },
       include: {
         raffleEntries: true,
       },
+    });
+
+    const expiredRaffles = activeRaffles.filter((raffle) => {
+      const isTimeExpired = raffle.endsAt <= now;
+      const isSoldOut = raffle.maxTickets > 0 && raffle.ticketSold >= raffle.maxTickets;
+      return isTimeExpired || isSoldOut;
     });
 
     if (expiredRaffles.length === 0) {

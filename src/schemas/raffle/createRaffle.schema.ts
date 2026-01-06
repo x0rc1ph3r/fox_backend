@@ -84,6 +84,7 @@ export const raffleSchema = z.object({
     maxEntries: z.number().gt(0),
     numberOfWinners: z.number().gt(0),
     prizeData: prizeDataSchema,
+    maxTickets: z.number().gt(0).optional(),
 });
 
 export const confirmRaffleCreationSchema = z.object({

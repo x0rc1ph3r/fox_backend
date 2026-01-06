@@ -19,6 +19,7 @@ model Raffle {
   ticketTokenAddress String      @default("So11111111111111111111111111111111111111112")
   ticketSupply       Int
   ticketSold         Int         @default(0)
+  maxTickets         Int         @default(0)
   claimed            Int         @default(0)
   numberOfWinners    Int         @default(1)
   winnerPicked       Boolean     @default(false)
