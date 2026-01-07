@@ -197,6 +197,13 @@ export default {
               winners: {
                 select: { walletAddress: true },
               },
+              transactions: {
+                where: {
+                  type: "RAFFLE_CLAIM",
+                  sender: walletAddress,
+                },
+                select: { id: true },
+              },
             },
           },
         },
@@ -209,11 +216,16 @@ export default {
         where: { userAddress: walletAddress },
       });
 
-      const raffles = entries.map((entry: { raffle: { winners: any[]; }; quantity: any; }) => ({
-        ...entry.raffle,
-        ticketsBought: entry.quantity,
-        isWinner: entry.raffle.winners.some((w) => w.walletAddress === walletAddress),
-      }));
+      const raffles = entries.map((entry: { raffle: { winners: any[]; transactions: any[]; }; quantity: any; }) => {
+        const isWinner = entry.raffle.winners.some((w) => w.walletAddress === walletAddress);
+        const { transactions, ...raffleData } = entry.raffle;
+        return {
+          ...raffleData,
+          ticketsBought: entry.quantity,
+          isWinner,
+          hasClaimed: isWinner ? transactions.length > 0 : null,
+        };
+      });
 
       return responseHandler.success(res, {
         message: "Raffles purchased fetched successfully",
