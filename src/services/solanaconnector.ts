@@ -54,7 +54,7 @@ async function rafflePda(raffleId: number): Promise<PublicKey> {
 
 async function getRaffleConfigPda(): Promise<PublicKey> {
     const [pda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("raffle_config")],
+        [Buffer.from("raffle")],
         RAFFLE_PROGRAM_ID
     );
     return pda;
