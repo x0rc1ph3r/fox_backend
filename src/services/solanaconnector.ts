@@ -3,8 +3,6 @@ import {
     PublicKey,
     Transaction,
     Keypair,
-    sendAndConfirmTransaction,
-    SystemProgram,
 } from "@solana/web3.js";
 import { AnchorProvider, Wallet } from "@coral-xyz/anchor";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, getAssociatedTokenAddressSync, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -156,6 +154,12 @@ async function announceWinners(
 ): Promise<string> {
     try {
         const tx = new Transaction();
+        tx.feePayer = ADMIN_KEYPAIR.publicKey;
+
+        const { blockhash, lastValidBlockHeight } =
+            await connection.getLatestBlockhash("finalized");
+
+        tx.recentBlockhash = blockhash;
 
         const raffleAccountPda = await rafflePda(args.raffleId);
         const raffleConfigPda = await getRaffleConfigPda();
@@ -245,12 +249,26 @@ async function announceWinners(
 
         tx.add(ix);
 
-        const signature = await sendAndConfirmTransaction(
-            connection,
+        const signature = await connection.sendTransaction(
             tx,
             [ADMIN_KEYPAIR],
-            { commitment: "confirmed" }
+            { skipPreflight: false }
         );
+
+        const confirmation = await connection.confirmTransaction(
+            {
+                signature,
+                blockhash,
+                lastValidBlockHeight,
+            },
+            "finalized"
+        );
+
+        if (confirmation.value.err) {
+            throw new Error(
+                `announceWinners failed: ${JSON.stringify(confirmation.value.err)}`
+            );
+        }
 
         console.log("Winners announced:", signature);
         return signature;
@@ -260,6 +278,7 @@ async function announceWinners(
         throw error;
     }
 }
+
 const auctionPda = async (auctionId: number): Promise<PublicKey> => {
     return PublicKey.findProgramAddressSync(
         [
@@ -279,20 +298,41 @@ async function startAuction(auctionId: number) {
     try {
         const tx = new Transaction();
 
-        const ix = await auctionProgram.methods.startAuction(auctionId)
+        const ix = await auctionProgram.methods
+            .startAuction(auctionId)
             .accounts({
                 auctionAdmin: ADMIN_KEYPAIR.publicKey,
             })
             .instruction();
 
         tx.add(ix);
+        tx.feePayer = ADMIN_KEYPAIR.publicKey;
 
-        const signature = await sendAndConfirmTransaction(
-            connection,
+        const { blockhash, lastValidBlockHeight } =
+            await connection.getLatestBlockhash("confirmed");
+
+        tx.recentBlockhash = blockhash;
+
+        const signature = await connection.sendTransaction(
             tx,
             [ADMIN_KEYPAIR],
-            { commitment: "confirmed" }
+            { skipPreflight: false }
         );
+
+        const confirmation = await connection.confirmTransaction(
+            {
+                signature,
+                blockhash,
+                lastValidBlockHeight,
+            },
+            "finalized"
+        );
+
+        if (confirmation.value.err) {
+            throw new Error(
+                `Start auction tx failed: ${JSON.stringify(confirmation.value.err)}`
+            );
+        }
 
         console.log("Auction started:", signature);
         return signature;
@@ -306,6 +346,12 @@ async function startAuction(auctionId: number) {
 async function endAuction(auctionId: number) {
     try {
         const tx = new Transaction();
+        tx.feePayer = ADMIN_KEYPAIR.publicKey;
+
+        const { blockhash, lastValidBlockHeight } =
+            await connection.getLatestBlockhash("finalized");
+
+        tx.recentBlockhash = blockhash;
 
         const auctionAccountPda = await auctionPda(auctionId);
         const auctionData = await auctionProgram.account.auction.fetch(
@@ -427,12 +473,26 @@ async function endAuction(auctionId: number) {
 
         tx.add(ix);
 
-        const signature = await sendAndConfirmTransaction(
-            connection,
+        const signature = await connection.sendTransaction(
             tx,
             [ADMIN_KEYPAIR],
-            { commitment: "confirmed" }
+            { skipPreflight: false }
         );
+
+        const confirmation = await connection.confirmTransaction(
+            {
+                signature,
+                blockhash,
+                lastValidBlockHeight,
+            },
+            "finalized"
+        );
+
+        if (confirmation.value.err) {
+            throw new Error(
+                `Start auction tx failed: ${JSON.stringify(confirmation.value.err)}`
+            );
+        }
 
         console.log("Auction ended:", signature);
         return signature;
@@ -461,6 +521,12 @@ const gumballConfigPda = PublicKey.findProgramAddressSync(
 async function startGumball(gumballId: number) {
     try {
         const tx = new Transaction();
+        tx.feePayer = ADMIN_KEYPAIR.publicKey;
+
+        const { blockhash, lastValidBlockHeight } =
+            await connection.getLatestBlockhash("finalized");
+
+        tx.recentBlockhash = blockhash;
 
         const ix = await gumballProgram.methods.activateGumball(gumballId)
             .accounts({
@@ -470,12 +536,26 @@ async function startGumball(gumballId: number) {
 
         tx.add(ix);
 
-        const signature = await sendAndConfirmTransaction(
-            connection,
+        const signature = await connection.sendTransaction(
             tx,
             [ADMIN_KEYPAIR],
-            { commitment: "confirmed" }
+            { skipPreflight: false }
         );
+
+        const confirmation = await connection.confirmTransaction(
+            {
+                signature,
+                blockhash,
+                lastValidBlockHeight,
+            },
+            "finalized"
+        );
+
+        if (confirmation.value.err) {
+            throw new Error(
+                `Start auction tx failed: ${JSON.stringify(confirmation.value.err)}`
+            );
+        }
 
         console.log("Gumball started:", signature);
         return signature;
@@ -489,6 +569,12 @@ async function startGumball(gumballId: number) {
 async function endGumball(gumballId: number) {
     try {
         const tx = new Transaction();
+        tx.feePayer = ADMIN_KEYPAIR.publicKey;
+
+        const { blockhash, lastValidBlockHeight } =
+            await connection.getLatestBlockhash("finalized");
+
+        tx.recentBlockhash = blockhash;
 
         const gumballAddress = await gumballPda(gumballId);
 
@@ -505,17 +591,17 @@ async function endGumball(gumballId: number) {
         let creatorTicketAta = FAKE_ATA;
 
         if (ticketMint) {
-                const ticketEscrowRes = await ensureAtaIx({
-                    connection,
-                    mint: ticketMint,
-                    owner: gumballAddress,
-                    payer: wallet.publicKey,
-                    tokenProgram: ticketTokenProgram,
-                    allowOwnerOffCurve: true, // PDA owner
-                });
+            const ticketEscrowRes = await ensureAtaIx({
+                connection,
+                mint: ticketMint,
+                owner: gumballAddress,
+                payer: wallet.publicKey,
+                tokenProgram: ticketTokenProgram,
+                allowOwnerOffCurve: true, // PDA owner
+            });
 
-                ticketEscrow = ticketEscrowRes.ata;
-                if (ticketEscrowRes.ix) tx.add(ticketEscrowRes.ix);
+            ticketEscrow = ticketEscrowRes.ata;
+            if (ticketEscrowRes.ix) tx.add(ticketEscrowRes.ix);
 
             const feeTreasuryRes = await ensureAtaIx({
                 connection,
@@ -563,9 +649,26 @@ async function endGumball(gumballId: number) {
 
         tx.add(ix);
 
-        const signature = await provider.sendAndConfirm(tx, [
-            ADMIN_KEYPAIR,
-        ]);
+        const signature = await connection.sendTransaction(
+            tx,
+            [ADMIN_KEYPAIR],
+            { skipPreflight: false }
+        );
+
+        const confirmation = await connection.confirmTransaction(
+            {
+                signature,
+                blockhash,
+                lastValidBlockHeight,
+            },
+            "finalized"
+        );
+
+        if (confirmation.value.err) {
+            throw new Error(
+                `Start auction tx failed: ${JSON.stringify(confirmation.value.err)}`
+            );
+        }
 
         console.log("Gumball ended:", signature);
         return signature;
